@@ -9,6 +9,12 @@ class User(AbstractUser):
         ('admin', 'Admin'),
     )
 
+    email = models.EmailField(unique=True)
     rol = models.CharField(max_length=10, choices=ROLE_CHOICES)
     matricula = models.CharField(max_length=50, null=True, blank=True)
-    activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username']
+
+    def __str__(self):
+        return self.email
