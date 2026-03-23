@@ -64,7 +64,7 @@ class Entrega(models.Model):
         max_digits=5, decimal_places=2, null=True, blank=True
     )
     comentario = models.TextField(max_length=1000)
-    fecha_entrega = models.DateTimeField(null=True, blank=True)
+    fecha_entrega = models.DateTimeField(auto_now_add=True)
 
 
 class Publicacion(models.Model):

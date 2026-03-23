@@ -35,6 +35,17 @@ class InscripcionSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
+class NullableDateTimeField(serializers.DateTimeField):
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault('style', {'input_type': 'text'})
+        super().__init__(*args, **kwargs)
+
+    def to_internal_value(self, value):
+        if value == '' or value is None:
+            return None
+        return super().to_internal_value(value)
+
+
 class TareaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tarea
