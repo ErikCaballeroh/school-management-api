@@ -47,6 +47,8 @@ class NullableDateTimeField(serializers.DateTimeField):
 
 
 class TareaSerializer(serializers.ModelSerializer):
+    fecha_limite = NullableDateTimeField(required=False, allow_null=True, default=None)
+
     class Meta:
         model = Tarea
         fields = '__all__'
