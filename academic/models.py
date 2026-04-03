@@ -23,6 +23,8 @@ class Materia(models.Model):
 
 class Grupo(models.Model):
     nombre = models.CharField(max_length=100)
+    codigo = models.CharField(
+        max_length=50, unique=True, null=True, blank=True)
     materia = models.ForeignKey(Materia, on_delete=models.CASCADE)
     docente = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -58,7 +60,8 @@ class Entrega(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     tarea = models.ForeignKey(Tarea, on_delete=models.CASCADE)
     archivo_url = models.CharField(max_length=200)
-    archivo_nombre = models.CharField(max_length=50)
+    video_url = models.CharField(max_length=200, blank=True, default='')
+    nombre_archivo = models.CharField(max_length=50)
     tamano_bytes = models.IntegerField()
     calificacion = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True
@@ -81,6 +84,19 @@ class Publicacion(models.Model):
 class Comentario(models.Model):
     contenido = models.TextField(max_length=1000)
     publicacion = models.ForeignKey(Publicacion, on_delete=models.CASCADE)
+    autor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class Material(models.Model):
+    titulo = models.CharField(max_length=255)
+    descripcion = models.TextField(blank=True, default='')
+    tipo = models.CharField(max_length=10, default='archivo')
+    archivo_url = models.CharField(max_length=200, blank=True, default='')
+    grupo = models.ForeignKey(Grupo, on_delete=models.CASCADE)
     autor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE

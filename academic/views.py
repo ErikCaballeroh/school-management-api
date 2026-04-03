@@ -8,6 +8,7 @@ from .models import (
     Entrega,
     Publicacion,
     Comentario,
+    Material,
 )
 from .serializers import (
     CicloEscolarSerializer,
@@ -18,6 +19,7 @@ from .serializers import (
     EntregaSerializer,
     PublicacionSerializer,
     ComentarioSerializer,
+    MaterialSerializer,
 )
 
 
@@ -59,3 +61,8 @@ class PublicacionViewSet(ModelViewSet):
 class ComentarioViewSet(ModelViewSet):
     queryset = Comentario.objects.all()
     serializer_class = ComentarioSerializer
+
+
+class MaterialViewSet(ModelViewSet):
+    queryset = Material.objects.all()
+    serializer_class = MaterialSerializer

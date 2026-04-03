@@ -8,6 +8,7 @@ from .models import (
     Entrega,
     Publicacion,
     Comentario,
+    Material,
 )
 
 
@@ -47,7 +48,8 @@ class NullableDateTimeField(serializers.DateTimeField):
 
 
 class TareaSerializer(serializers.ModelSerializer):
-    fecha_limite = NullableDateTimeField(required=False, allow_null=True, default=None)
+    fecha_limite = NullableDateTimeField(
+        required=False, allow_null=True, default=None)
 
     class Meta:
         model = Tarea
@@ -69,4 +71,10 @@ class PublicacionSerializer(serializers.ModelSerializer):
 class ComentarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = Comentario
+        fields = '__all__'
+
+
+class MaterialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Material
         fields = '__all__'

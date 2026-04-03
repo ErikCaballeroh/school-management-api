@@ -8,6 +8,7 @@ from .models import (
     Entrega,
     Publicacion,
     Comentario,
+    Material,
 )
 
 admin.site.register(CicloEscolar)
@@ -18,3 +19,4 @@ admin.site.register(Tarea)
 admin.site.register(Entrega)
 admin.site.register(Publicacion)
 admin.site.register(Comentario)
+admin.site.register(Material)
