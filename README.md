@@ -70,11 +70,18 @@ pip install -r requirements.txt
 
 ### 1. Variables de entorno
 
-Crear un archivo `.env` en la raíz del proyecto:
+Crear un archivo `.env` en la raíz del proyecto (puedes copiar el archivo `.env.example` y renombrarlo):
 
 ```env
 DEBUG=True
-SECRET_KEY=your_secret_key
+SECRET_KEY=tu_secret_key_aqui
+
+# Cloudflare R2 Credentials (para la subida de archivos)
+R2_ACCOUNT_ID=tu_account_id_de_cloudflare
+R2_ACCESS_KEY_ID=tu_access_key_id
+R2_SECRET_ACCESS_KEY=tu_secret_access_key
+R2_BUCKET_NAME=nombre_de_tu_bucket
+R2_CUSTOM_DOMAIN=https://pub-midominio.r2.dev
 ```
 
 ---

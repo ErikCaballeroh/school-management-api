@@ -122,6 +122,15 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Cloudflare R2 settings
+R2_ACCESS_KEY_ID = os.getenv('R2_ACCESS_KEY_ID')
+R2_SECRET_ACCESS_KEY = os.getenv('R2_SECRET_ACCESS_KEY')
+R2_ACCOUNT_ID = os.getenv('R2_ACCOUNT_ID')
+R2_BUCKET_NAME = os.getenv('R2_BUCKET_NAME')
+# e.g. https://pub-xxxx.r2.dev
+R2_CUSTOM_DOMAIN = os.getenv('R2_CUSTOM_DOMAIN')
+
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 

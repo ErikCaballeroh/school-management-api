@@ -1,3 +1,4 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 from .views import (
     CicloEscolarViewSet,
@@ -10,6 +11,7 @@ from .views import (
     ComentarioViewSet,
     MaterialViewSet,
 )
+from .upload_view import FileUploadView
 
 router = DefaultRouter()
 router.register(r'ciclos', CicloEscolarViewSet)
@@ -22,4 +24,6 @@ router.register(r'publicaciones', PublicacionViewSet)
 router.register(r'comentarios', ComentarioViewSet)
 router.register(r'materiales', MaterialViewSet)
 
-urlpatterns = router.urls
+urlpatterns = [
+    path('upload/', FileUploadView.as_view(), name='file-upload'),
+] + router.urls
