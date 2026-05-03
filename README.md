@@ -1,432 +1,294 @@
-# 📚 Sistema de Gestión Escolar API
+# Sistema de Gestión Escolar — API
 
-Backend desarrollado con Django y Django REST Framework para la gestión académica de una institución educativa.
-
-## 🚀 Tecnologías
-
-* Python
-* Django
-* Django REST Framework
-* SQLite (desarrollo)
-* PostgreSQL (producción)
+Backend Django + DRF para la gestión académica de una institución educativa. Incluye los módulos de Alumno, Docente y Administración, generación de reportes con procesamiento paralelo, almacenamiento de archivos en Cloudflare R2 y un stack distribuido (Nginx + Postgres + Redis + 2 backends) para el PIA.
 
 ---
 
-## 📦 Requisitos
+## Tabla de contenidos
 
-Antes de comenzar, asegúrate de tener instalado:
-
-* Python 3.10 o superior
-* Git
+1. [Cómo correrlo (modo desarrollo)](#cómo-correrlo-modo-desarrollo)
+2. [Cómo correrlo (modo distribuido / Docker)](#cómo-correrlo-modo-distribuido--docker)
+3. [Variables de entorno](#variables-de-entorno)
+4. [Características del PIA: Sistema Distribuido](#características-del-pia-sistema-distribuido)
+5. [API: rutas y permisos](#api-rutas-y-permisos)
+6. [Política de archivos](#política-de-archivos)
+7. [Estructura del proyecto](#estructura-del-proyecto)
 
 ---
 
-## 📥 Clonar el repositorio
+## Cómo correrlo (modo desarrollo)
+
+Requiere Python 3.10+.
 
 ```bash
 git clone https://github.com/ErikCaballeroh/school-management-api.git
 cd school-management-api
-```
 
----
-
-## 🧪 Crear entorno virtual
-
-```bash
+# 1. Entorno virtual
 python -m venv venv
-```
+source venv/bin/activate            # Linux / Mac
+# venv\Scripts\activate              # Windows
 
-### Activar entorno virtual
-
-#### Git Bash / Linux / Mac:
-
-```bash
-source venv/Scripts/activate
-```
-
-#### CMD:
-
-```bash
-venv\Scripts\activate
-```
-
-#### PowerShell:
-
-```bash
-venv\Scripts\Activate.ps1
-```
-
----
-
-## 📦 Instalar dependencias
-
-```bash
+# 2. Dependencias
 pip install -r requirements.txt
-```
 
----
-
-## ⚙️ Configuración del proyecto
-
-### 1. Variables de entorno
-
-Crear un archivo `.env` en la raíz del proyecto (puedes copiar el archivo `.env.example` y renombrarlo):
-
-```env
+# 3. Variables de entorno (crea un .env en la raíz)
+cat > .env <<'EOF'
 DEBUG=True
-SECRET_KEY=tu_secret_key_aqui
+SECRET_KEY=cambia-esta-llave-en-produccion
+ALLOWED_HOSTS=*
+EOF
 
-# Cloudflare R2 Credentials (para la subida de archivos)
-R2_ACCOUNT_ID=tu_account_id_de_cloudflare
-R2_ACCESS_KEY_ID=tu_access_key_id
-R2_SECRET_ACCESS_KEY=tu_secret_access_key
-R2_BUCKET_NAME=nombre_de_tu_bucket
-R2_CUSTOM_DOMAIN=https://pub-midominio.r2.dev
-```
-
----
-
-### 2. Base de datos
-
-Por defecto, el proyecto usa SQLite (no requiere configuración adicional).
-
----
-
-## 🗄️ Migraciones
-
-Aplicar migraciones para crear la base de datos:
-
-```bash
-python manage.py makemigrations
+# 4. Migraciones + superusuario
 python manage.py migrate
-```
-
----
-
-## 👤 Crear superusuario
-
-```bash
 python manage.py createsuperuser
-```
 
-Sigue las instrucciones para crear el usuario administrador.
-
----
-
-## ▶️ Ejecutar servidor
-
-```bash
+# 5. Arrancar
 python manage.py runserver
 ```
 
-El servidor estará disponible en:
+API en `http://127.0.0.1:8000/`. Admin en `/admin/`.
 
+---
+
+## Cómo correrlo (modo distribuido / Docker)
+
+Este es el modo que cumple los requisitos del **PIA**: distribución de carga, tolerancia a fallos, escalabilidad. Levanta 2 instancias backend, Nginx como load balancer, Postgres y Redis.
+
+```bash
+# 0. Asegúrate de tener Docker Desktop / Docker Engine corriendo
+
+# 1. (Opcional) crea un .env con tu SECRET_KEY y credenciales R2
+cat > .env <<'EOF'
+SECRET_KEY=cambia-esta-llave-en-produccion
+R2_ACCOUNT_ID=tu_account
+R2_ACCESS_KEY_ID=tu_key
+R2_SECRET_ACCESS_KEY=tu_secret
+R2_BUCKET_NAME=tu_bucket
+R2_CUSTOM_DOMAIN=https://pub-tu-dominio.r2.dev
+EOF
+
+# 2. Levantar todo el stack
+docker compose up --build
+
+# La API queda en http://localhost:8080/
 ```
-http://127.0.0.1:8000/
+
+### Comandos útiles del stack
+
+```bash
+# Ver logs en vivo
+docker compose logs -f
+
+# Escalar horizontalmente (agregar más instancias)
+docker compose up --scale backend1=3
+
+# Probar tolerancia a fallos: matar una instancia
+docker compose stop backend1
+# Nginx automáticamente enruta al backend2; recupera con:
+docker compose start backend1
+
+# Apagar todo
+docker compose down
+
+# Apagar y borrar la BD
+docker compose down -v
+```
+
+### Comprobaciones rápidas
+
+```bash
+# Liveness (sin auth, lo usa Nginx)
+curl http://localhost:8080/healthz
+
+# Readiness (chequea DB y cache)
+curl http://localhost:8080/api/system/health/
+
+# Headers que agrega el middleware
+curl -i http://localhost:8080/api/ciclos/
+# Verás: X-Request-ID, X-Response-Time-MS, X-Server-Instance: backend1|backend2
 ```
 
 ---
 
-## 🔐 Panel de administración
+## Variables de entorno
 
-Accede al panel en:
-
-```
-http://127.0.0.1:8000/admin
-```
-
-Inicia sesión con el superusuario creado.
-
----
-
-## 📁 Estructura del proyecto
-
-```
-school-management-api/
-│
-├── config/        # Configuración global del proyecto
-├── users/         # Usuarios, autenticación y roles
-├── academic/      # Materias, grupos, tareas
-├── reports/       # Reportes y procesamiento
-├── manage.py
-└── requirements.txt
-```
+| Variable | Default | Notas |
+|---|---|---|
+| `SECRET_KEY` | — | **Obligatorio**. ≥32 chars en prod. |
+| `DEBUG` | `False` | `True` para desarrollo. |
+| `ALLOWED_HOSTS` | `*` | CSV separado por comas. |
+| `DB_ENGINE` | `django.db.backends.sqlite3` | Cambia a `postgresql` para Docker. |
+| `DB_NAME` / `DB_USER` / `DB_PASSWORD` / `DB_HOST` / `DB_PORT` | — | Solo necesario con Postgres. |
+| `DB_CONN_MAX_AGE` | `60` | Segundos de reuso de conexión (tolerancia a fallos). |
+| `CACHE_BACKEND` | `locmem` | `redis` para usar Redis. |
+| `REDIS_URL` | `redis://redis:6379/1` | Solo si `CACHE_BACKEND=redis`. |
+| `INSTANCE_ID` | hostname | Identifica la instancia en métricas y headers. |
+| `GUNICORN_WORKERS` | `3` | Procesos por contenedor. |
+| `GUNICORN_THREADS` | `2` | Threads por worker. |
+| `R2_ACCOUNT_ID` / `R2_ACCESS_KEY_ID` / `R2_SECRET_ACCESS_KEY` / `R2_BUCKET_NAME` / `R2_CUSTOM_DOMAIN` | — | Para subir archivos a Cloudflare R2. |
 
 ---
 
-## 🔑 Autenticación
+## Características : Sistema Distribuido
 
-El proyecto utiliza **JWT (JSON Web Tokens)** para la autenticación. Todas las rutas de la API (excepto la obtención de tokens) requieren un token válido en el header:
+| Requisito | Implementación |
+|---|---|
+| **Monitoreo de Recursos** | App `system/` expone CPU, RAM, disco, latencia DB, métricas de peticiones, estado de circuit breakers. Endpoints `/api/system/health/`, `/metrics/`, `/resources/`, `/info/`. Dashboard React en `/admin/monitoreo`. |
+| **Middleware** | `system.middleware`: `RequestIDMiddleware` (X-Request-ID propagado a logs y respuesta), `RequestMetricsMiddleware` (latencia + headers), `HealthCheckBypassMiddleware` (liveness sin tocar DB). |
+| **Distribución de peticiones** | Nginx (`docker/nginx.conf`) con `upstream` `least_conn` balanceando entre `backend1` y `backend2`. Cada backend corre Gunicorn multi-worker (3×2 por defecto). |
+| **Tolerancia a fallos** | (1) Nginx `proxy_next_upstream` reintenta en otra instancia si una falla; (2) `max_fails=3 fail_timeout=15s` saca instancias enfermas; (3) `system.resilience.CircuitBreaker` + `retry()` para R2 (CLOSED→OPEN→HALF_OPEN); (4) `CONN_MAX_AGE` + `CONN_HEALTH_CHECKS` reabren conexiones DB caídas. |
+| **Escalabilidad** | (1) `docker compose --scale backend1=N` agrega instancias; (2) reportes JSON usan `system.parallel.run_parallel` y `@cached_report` (TTL 60s); (3) Redis compartido entre instancias para que el cache funcione across nodes. |
+
+### Endpoints de monitoreo
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| GET | `/healthz` | Liveness ultra-barato (no toca DB). Lo usa Nginx. |
+| GET | `/api/system/health/` | Readiness (DB + cache). |
+| GET | `/api/system/metrics/` | Latencias agregadas (avg/p50/p95/p99), top routes, status counts, circuit breakers. |
+| GET | `/api/system/resources/` | CPU por core, RAM, disco, load average, memoria del proceso. |
+| GET | `/api/system/info/` | Info del proceso (PID, workers, instancia, cache backend). |
+
+---
+
+## API: rutas y permisos
+
+Todas las rutas (excepto las indicadas) requieren JWT en el header:
 
 ```
 Authorization: Bearer <access_token>
 ```
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/api/token/` | Obtener access y refresh token (login) |
-| POST | `/api/token/refresh/` | Refrescar el access token |
+### Autenticación
 
-### Ejemplo de login
+| Método | Ruta | Auth | Descripción |
+|---|---|---|---|
+| POST | `/api/token/` | público | Login con `email` + `password`. Devuelve `access` y `refresh`. |
+| POST | `/api/token/refresh/` | público | Refresca el `access` token. |
 
+### Permisos por rol
+
+Los ViewSets aplican permisos según el rol del usuario autenticado y filtran el queryset por dueño:
+
+| Recurso | Lectura | Escritura | Filtrado del queryset |
+|---|---|---|---|
+| `users/` | autenticado | admin | — |
+| `ciclos/` | autenticado | admin | — |
+| `materias/` | autenticado | admin | — |
+| `grupos/` | autenticado | docente o admin | — |
+| `inscripciones/` | autenticado | autenticado | alumno→propias, docente→de sus grupos, admin→todas |
+| `tareas/` | autenticado | docente o admin | alumno→de sus grupos, docente→de los que imparte |
+| `entregas/` | autenticado | autenticado | alumno→propias, docente→de sus grupos. `alumno` se auto-asigna a `request.user` en POST |
+| `publicaciones/` | autenticado | docente o admin | alumno→de sus materias, docente→propias. `autor` auto-asignado |
+| `comentarios/` | autenticado | autenticado | filtrado por publicaciones visibles. `autor` auto-asignado |
+| `materiales/` | autenticado | docente o admin | alumno→de sus grupos, docente→propios. `autor` auto-asignado |
+
+### Endpoints destacados
+
+#### Inscripción por código (alumno)
+
+```http
+POST /api/grupos/join-by-code/
+Authorization: Bearer <access_token>
+Content-Type: application/json
+
+{ "codigo": "HS2B8R" }
+```
+
+Respuestas:
+- `201` — inscrito (devuelve `inscripcion` y `grupo`)
+- `200` — ya estaba inscrito en ese mismo grupo
+- `404` — código no encontrado
+- `409` — ya inscrito en otro grupo de la misma materia/ciclo (UNIQUE constraint)
+- `403` — el usuario no es alumno
+
+El campo `Grupo.codigo` se autogenera al crear el grupo si no se proporciona (6 caracteres, sin O/0/I/1).
+
+#### Subida de archivos
+
+```http
+POST /api/upload/
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data
+
+file=<binary>
+```
+
+Validaciones automáticas:
+- **Permitidos**: PDF, DOCX, PPTX, XLSX, JPG, JPEG, PNG, ZIP, RAR
+- **Bloqueados**: MP4, AVI, MOV, MKV, WMV (usar `video_url` en `Entrega`)
+- **Máximo**: 30 MB
+
+Respuesta:
 ```json
-POST /api/token/
 {
-    "email": "usuario@ejemplo.com",
-    "password": "tu_contraseña"
+    "url": "https://pub-tudominio.r2.dev/<uuid>.pdf",
+    "nombre_archivo": "tarea.pdf",
+    "tamano_bytes": 1234567
 }
 ```
 
-**Respuesta:**
+Errores:
+- `400` extensión inválida o tamaño excedido
+- `502` fallo del servicio R2 (después de 3 reintentos)
+- `503` circuit breaker abierto (R2 caído repetidas veces)
 
-```json
-{
-    "access": "eyJ...",
-    "refresh": "eyJ..."
-}
-```
+#### Reportes
 
----
+PDF (descarga directa):
+| Ruta | Descripción |
+|---|---|
+| `GET /api/reports/promedio-alumno/<id>/` | Promedio por materia + general |
+| `GET /api/reports/promedio-grupo/<id>/` | Promedio de cada alumno del grupo |
+| `GET /api/reports/promedio-materia/<id>/` | Promedio de todos los grupos de una materia |
+| `GET /api/reports/indice-reprobacion/<id>/` | Aprobados / reprobados (mín. aprobatoria: 70) |
 
-## 📡 Rutas de la API
-
-### 👤 Usuarios (`/api/users/`)
-
-CRUD completo para la gestión de usuarios.
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/users/` | Listar todos los usuarios |
-| POST | `/api/users/` | Crear un nuevo usuario |
-| GET | `/api/users/{id}/` | Obtener detalle de un usuario |
-| PUT | `/api/users/{id}/` | Actualizar un usuario completo |
-| PATCH | `/api/users/{id}/` | Actualizar parcialmente un usuario |
-| DELETE | `/api/users/{id}/` | Eliminar un usuario |
-
-**Campos:** `id`, `email`, `nombre`, `rol` (alumno/docente/admin), `matricula`, `activo`, `created_at`
+JSON (con caché y métricas de paralelismo):
+| Ruta | Descripción |
+|---|---|
+| `GET /api/reports/json/promedio-alumno/<id>/` | Mismos datos, JSON. Incluye `parallel.elapsed_ms` y `cached: bool` |
+| `GET /api/reports/json/promedio-grupo/<id>/` | — |
+| `GET /api/reports/json/promedio-materia/<id>/` | — |
+| `GET /api/reports/json/indice-reprobacion/<id>/` | — |
 
 ---
 
-### 📅 Ciclos Escolares (`/api/ciclos/`)
+## Política de archivos
 
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/ciclos/` | Listar todos los ciclos escolares |
-| POST | `/api/ciclos/` | Crear un nuevo ciclo escolar |
-| GET | `/api/ciclos/{id}/` | Obtener detalle de un ciclo |
-| PUT | `/api/ciclos/{id}/` | Actualizar un ciclo completo |
-| PATCH | `/api/ciclos/{id}/` | Actualizar parcialmente un ciclo |
-| DELETE | `/api/ciclos/{id}/` | Eliminar un ciclo |
+| Parámetro | Valor |
+|---|---|
+| Tipos permitidos | PDF, DOCX, PPTX, XLSX, JPG, PNG, ZIP, RAR |
+| Tipos bloqueados | MP4, AVI, MOV, MKV, WMV |
+| Tamaño máximo | 30 MB |
+| Entregas por tarea | Ilimitadas hasta la fecha límite |
+| Almacenamiento | Cloudflare R2 (la BD solo guarda la URL) |
 
-**Campos:** `id`, `nombre`, `fecha_inicio`, `fecha_fin`, `activo`
-
----
-
-### 📘 Materias (`/api/materias/`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/materias/` | Listar todas las materias |
-| POST | `/api/materias/` | Crear una nueva materia |
-| GET | `/api/materias/{id}/` | Obtener detalle de una materia |
-| PUT | `/api/materias/{id}/` | Actualizar una materia completa |
-| PATCH | `/api/materias/{id}/` | Actualizar parcialmente una materia |
-| DELETE | `/api/materias/{id}/` | Eliminar una materia |
-
-**Campos:** `id`, `nombre`, `clave`, `ciclo`
+Para evidencia en video el alumno usa el campo `video_url` con un enlace de YouTube o Google Drive.
 
 ---
 
-### 👥 Grupos (`/api/grupos/`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/grupos/` | Listar todos los grupos |
-| POST | `/api/grupos/` | Crear un nuevo grupo |
-| GET | `/api/grupos/{id}/` | Obtener detalle de un grupo |
-| PUT | `/api/grupos/{id}/` | Actualizar un grupo completo |
-| PATCH | `/api/grupos/{id}/` | Actualizar parcialmente un grupo |
-| DELETE | `/api/grupos/{id}/` | Eliminar un grupo |
-
-**Campos:** `id`, `nombre`, `codigo`, `materia`, `docente`, `ciclo`
-
----
-
-### 📝 Inscripciones (`/api/inscripciones/`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/inscripciones/` | Listar todas las inscripciones |
-| POST | `/api/inscripciones/` | Crear una nueva inscripción |
-| GET | `/api/inscripciones/{id}/` | Obtener detalle de una inscripción |
-| PUT | `/api/inscripciones/{id}/` | Actualizar una inscripción completa |
-| PATCH | `/api/inscripciones/{id}/` | Actualizar parcialmente una inscripción |
-| DELETE | `/api/inscripciones/{id}/` | Eliminar una inscripción |
-
-**Campos:** `id`, `alumno`, `grupo`, `materia`, `ciclo`, `fecha_inscripcion`
-
----
-
-### 📋 Tareas (`/api/tareas/`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/tareas/` | Listar todas las tareas |
-| POST | `/api/tareas/` | Crear una nueva tarea |
-| GET | `/api/tareas/{id}/` | Obtener detalle de una tarea |
-| PUT | `/api/tareas/{id}/` | Actualizar una tarea completa |
-| PATCH | `/api/tareas/{id}/` | Actualizar parcialmente una tarea |
-| DELETE | `/api/tareas/{id}/` | Eliminar una tarea |
-
-**Campos:** `id`, `titulo`, `descripcion`, `fecha_limite`, `grupo`, `created_at`
-
----
-
-### 📤 Entregas (`/api/entregas/`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/entregas/` | Listar todas las entregas |
-| POST | `/api/entregas/` | Crear una nueva entrega |
-| GET | `/api/entregas/{id}/` | Obtener detalle de una entrega |
-| PUT | `/api/entregas/{id}/` | Actualizar una entrega completa |
-| PATCH | `/api/entregas/{id}/` | Actualizar parcialmente una entrega |
-| DELETE | `/api/entregas/{id}/` | Eliminar una entrega |
-
-**Campos:** `id`, `alumno`, `tarea`, `archivo_url`, `video_url`, `nombre_archivo`, `tamano_bytes`, `calificacion`, `comentario`, `fecha_entrega`
-
----
-
-### 📰 Publicaciones (`/api/publicaciones/`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/publicaciones/` | Listar todas las publicaciones |
-| POST | `/api/publicaciones/` | Crear una nueva publicación |
-| GET | `/api/publicaciones/{id}/` | Obtener detalle de una publicación |
-| PUT | `/api/publicaciones/{id}/` | Actualizar una publicación completa |
-| PATCH | `/api/publicaciones/{id}/` | Actualizar parcialmente una publicación |
-| DELETE | `/api/publicaciones/{id}/` | Eliminar una publicación |
-
-**Campos:** `id`, `titulo`, `contenido`, `materia`, `autor`, `created_at`
-
----
-
-### 💬 Comentarios (`/api/comentarios/`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/comentarios/` | Listar todos los comentarios |
-| POST | `/api/comentarios/` | Crear un nuevo comentario |
-| GET | `/api/comentarios/{id}/` | Obtener detalle de un comentario |
-| PUT | `/api/comentarios/{id}/` | Actualizar un comentario completo |
-| PATCH | `/api/comentarios/{id}/` | Actualizar parcialmente un comentario |
-| DELETE | `/api/comentarios/{id}/` | Eliminar un comentario |
-
-**Campos:** `id`, `contenido`, `publicacion`, `autor`, `created_at`
-
----
-
-### 📂 Materiales (`/api/materiales/`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| GET | `/api/materiales/` | Listar todos los materiales |
-| POST | `/api/materiales/` | Crear un nuevo material |
-| GET | `/api/materiales/{id}/` | Obtener detalle de un material |
-| PUT | `/api/materiales/{id}/` | Actualizar un material completo |
-| PATCH | `/api/materiales/{id}/` | Actualizar parcialmente un material |
-| DELETE | `/api/materiales/{id}/` | Eliminar un material |
-
-**Campos:** `id`, `titulo`, `descripcion`, `tipo`, `archivo_url`, `grupo`, `autor`, `created_at`
-
----
-
-### 📎 Subida de Archivos (`/api/upload/`)
-
-| Método | Ruta | Descripción |
-|--------|------|-------------|
-| POST | `/api/upload/` | Subir un archivo a Cloudflare R2 |
-
-**Body:** `multipart/form-data` con campo `file`
-
-**Respuesta:**
-
-```json
-{
-    "url": "https://pub-midominio.r2.dev/archivo.pdf"
-}
-```
-
----
-
-### 📊 Reportes PDF con Procesamiento Paralelo (`/api/reports/`)
-
-Rutas para generar reportes en formato PDF. Cada ruta utiliza **procesamiento paralelo** con `ThreadPoolExecutor` para calcular los datos de forma concurrente.
-
-| Método | Ruta | Descripción | Paralelismo |
-|--------|------|-------------|-------------|
-| GET | `/api/reports/promedio-alumno/{alumno_id}/` | Promedio de un alumno en cada materia | 1 hilo por materia |
-| GET | `/api/reports/promedio-grupo/{grupo_id}/` | Promedio de cada alumno de un grupo | 1 hilo por alumno |
-| GET | `/api/reports/promedio-materia/{materia_id}/` | Promedio de todos los alumnos en una materia | 1 hilo por grupo |
-| GET | `/api/reports/indice-reprobacion/{grupo_id}/` | Índice de reprobación de un grupo | 1 hilo por alumno |
-
-> **Nota:** La calificación mínima aprobatoria es **70**. Cada ruta retorna un archivo PDF descargable.
-
-#### Promedio por Alumno
+## Estructura del proyecto
 
 ```
-GET /api/reports/promedio-alumno/1/
-```
-
-Genera un PDF con el promedio del alumno en **cada una de sus materias** y un promedio general.
-
-#### Promedio por Grupo
-
-```
-GET /api/reports/promedio-grupo/1/
-```
-
-Genera un PDF con las **calificaciones y promedio de cada alumno** dentro del grupo.
-
-#### Promedio por Materia
-
-```
-GET /api/reports/promedio-materia/1/
-```
-
-Genera un PDF con el promedio de **todos los alumnos de todos los grupos** de una materia.
-
-#### Índice de Reprobación
-
-```
-GET /api/reports/indice-reprobacion/1/
-```
-
-Genera un PDF con el **porcentaje de aprobación y reprobación** de un grupo, detallando el estatus de cada alumno.
-
----
-
-## 🧠 Notas importantes
-
-* Este proyecto utiliza un modelo de usuario personalizado (`users.User`)
-* Los roles del sistema son:
-
-  * alumno
-  * docente
-  * admin
-* Los archivos no se almacenan en la base de datos (solo URLs)
-
----
-
-## 🧹 Archivos ignorados
-
-El proyecto incluye un `.gitignore` con:
-
-```
-venv/
-__pycache__/
-*.pyc
-db.sqlite3
-.env
+school-management-api/
+├── config/                # Settings, URLs, WSGI/ASGI, LOGGING
+├── users/                 # Modelo User custom + permissions por rol
+├── academic/              # Ciclos, materias, grupos, inscripciones, tareas, entregas, publicaciones, comentarios, materiales
+│   ├── upload_view.py     # Subida a R2 con retry + circuit breaker
+│   └── migrations/
+├── reports/               # Reportes PDF (paralelos) y JSON (cacheados)
+├── system/                # PIA: middleware, monitoreo, resilience, parallel, cache
+│   ├── middleware.py      # RequestID + Métricas + HealthCheckBypass
+│   ├── metrics.py         # Store en memoria de latencias y top routes
+│   ├── resilience.py      # CircuitBreaker + retry()
+│   ├── parallel.py        # run_parallel() + @cached_report
+│   ├── views.py           # /api/system/{health,metrics,resources,info}/
+│   └── urls.py
+├── docker/
+│   └── nginx.conf         # Load balancer least_conn + failover
+├── docker-compose.yml     # 2 backends + Nginx + Postgres + Redis
+├── Dockerfile             # Imagen Django + Gunicorn multi-worker
+├── manage.py
+└── requirements.txt
 ```

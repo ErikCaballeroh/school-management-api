@@ -1,5 +1,14 @@
+import secrets
+import string
+
 from django.conf import settings
 from django.db import models
+
+
+def _generate_codigo(length=6):
+    """Codigo de inscripcion legible (sin caracteres ambiguos: O/0, I/1)."""
+    alphabet = ''.join(c for c in (string.ascii_uppercase + string.digits) if c not in 'O0I1')
+    return ''.join(secrets.choice(alphabet) for _ in range(length))
 
 
 class CicloEscolar(models.Model):
@@ -23,14 +32,27 @@ class Materia(models.Model):
 
 class Grupo(models.Model):
     nombre = models.CharField(max_length=100)
-    codigo = models.CharField(
-        max_length=50, unique=True, null=True, blank=True)
+    codigo = models.CharField(max_length=50, unique=True, blank=True)
     materia = models.ForeignKey(Materia, on_delete=models.CASCADE)
     docente = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE
     )
     ciclo = models.ForeignKey(CicloEscolar, on_delete=models.CASCADE)
+
+    def save(self, *args, **kwargs):
+        # Genera un codigo unico si no se proporciono uno (spec: codigo NOT
+        # NULL, usado en el flujo de join-by-code del alumno).
+        if not self.codigo:
+            for _ in range(10):
+                candidate = _generate_codigo()
+                if not Grupo.objects.filter(codigo=candidate).exists():
+                    self.codigo = candidate
+                    break
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'{self.nombre} ({self.codigo})'
 
 
 class Inscripcion(models.Model):
@@ -45,6 +67,16 @@ class Inscripcion(models.Model):
         on_delete=models.CASCADE
     )
     fecha_inscripcion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        # Spec v2.1 6.5: un alumno no puede estar en dos grupos de la misma
+        # materia en el mismo ciclo.
+        constraints = [
+            models.UniqueConstraint(
+                fields=['alumno', 'materia', 'ciclo'],
+                name='unique_inscripcion_alumno_materia_ciclo',
+            ),
+        ]
 
 
 class Tarea(models.Model):

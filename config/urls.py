@@ -63,6 +63,9 @@ urlpatterns = [
     path('api/upload/', __import__('academic.upload_view', fromlist=['FileUploadView']).FileUploadView.as_view(), name='file-upload'),
     path('api/reports/', include('reports.urls')),
 
+    # Monitoreo del sistema (PIA)
+    path('api/system/', include('system.urls')),
+
     # JWT
     path('api/token/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
