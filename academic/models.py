@@ -98,7 +98,7 @@ class Entrega(models.Model):
     calificacion = models.DecimalField(
         max_digits=5, decimal_places=2, null=True, blank=True
     )
-    comentario = models.TextField(max_length=1000)
+    comentario = models.TextField(max_length=1000, blank=True, default='')
     fecha_entrega = models.DateTimeField(auto_now_add=True)
 
 
